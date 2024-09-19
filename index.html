@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>5桁素数当てゲーム</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #game-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        #question-area, #input-area, #result-area {
+            margin-bottom: 20px;
+        }
+        #history {
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        #control-button {
+            margin-right: 10px;
+        }
+        #tweetButtonContainer {
+            margin-top: 20px;
+        }
+        #tweetButtonContainer a {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #1DA1F2;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        #tweetButtonContainer a:hover {
+            background-color: #0d95e8;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-title">
+        5枚5桁素数力
+        <a href="https://green-plus.github.io/sosushindan/howtoplay.html">説明</a>
+    </div>
+
+    <div id="question-area">
+        <div id="digit-combination"></div>
+    </div>
+
+    <!-- ツイートボタンを表示するコンテナ -->
+    <div id="tweetButtonContainer"></div>
+
+    <div id="input-area">
+        <input type="number" id="answer-input" placeholder="素数を入力してください" />
+        <button id="submit-button">回答</button>
+    </div>
+
+    <div id="result-area">
+        <div id="score"></div>
+        <div id="history"></div>
+    </div>
+
+    <button id="control-button">ゲーム開始</button>
+
+
+
+    <script>
+        // 問題リストの作成
+        let problemList1 = [];
+        let problemList2 = [];
+        let currentProblemIndex = 0;
+        let currentProblemSet = [];
+        let score = 0;
+        let gamePhase = 0; // 0: ゲーム開始前, 1: 問題リスト1, 2: 問題リスト2
+        let totalProblemsList1 = 0;
+        let totalProblemsList2 = 0;
+        let problemsToPresentList1 = 20; // 出題する問題数を変数で管理
+        let problemsToPresentList2 = 30;
+        let correctAnswersList1 = 0;
+        let correctAnswersList2 = 0;
+        let presentedProblemsList1 = 0;
+        let presentedProblemsList2 = 0;
+
+        // 素数判定関数
+        function isPrime(num) {
+            if (num < 2) return false;
+            for (let i = 2; i <= Math.sqrt(num); i++) {
+                if (num % i === 0) return false;
+            }
+            return true;
+        }
+
+        // 数字の出現回数をカウントする関数
+        function getDigitCounts(num) {
+            let counts = Array(10).fill(0);
+            let numStr = num.toString();
+            for (let char of numStr) {
+                counts[parseInt(char)]++;
+            }
+            return counts;
+        }
+
+        // 数字がすべて異なるか確認する関数
+        function allDigitsUnique(counts) {
+            for (let count of counts) {
+                if (count > 1) return false;
+            }
+            return true;
+        }
+
+        // 0が含まれているか確認する関数
+        function containsZero(num) {
+            return num.toString().includes('0');
+        }
+
+        // 問題を表示する関数
+        function displayProblem() {
+            if (currentProblemIndex >= currentProblemSet.length) {
+                // ゲーム終了
+                if (gamePhase === 1) {
+                    // 問題リスト2に移行
+                    gamePhase = 2;
+                    currentProblemIndex = 0;
+                    currentProblemSet = problemList2.sort(() => 0.5 - Math.random()).slice(0, problemsToPresentList2);
+                    document.getElementById('history').innerHTML += `<div>問題リスト2からゲームを開始します。</div>`;
+                    presentedProblemsList2 = currentProblemSet.length;
+                    displayProblem();
+                } else {
+                    // 全ゲーム終了
+                    calculateFinalScore();
+                    return;
+                }
+                return;
+            }
+
+            let problem = currentProblemSet[currentProblemIndex];
+            let digitCombination = problem.digits.join('');
+            document.getElementById('digit-combination').innerHTML = `<strong>問題 ${currentProblemIndex + 1} / ${currentProblemSet.length}</strong><br><strong>数字の組み合わせ：</strong>${digitCombination}`;
+            document.getElementById('answer-input').value = '';
+        }
+
+        // ゲーム開始関数
+        function startGame() {
+            if (gamePhase === 0) {
+                // ゲーム開始
+                score = 0;
+                currentProblemIndex = 0;
+                correctAnswersList1 = 0;
+                correctAnswersList2 = 0;
+                document.getElementById('history').innerHTML = '';
+                document.getElementById('score').innerText = `正解：${score}`;
+                document.getElementById('input-area').style.display = 'block';
+
+                gamePhase = 1;
+                currentProblemSet = problemList1.sort(() => 0.5 - Math.random()).slice(0, problemsToPresentList1);
+                presentedProblemsList1 = currentProblemSet.length;
+                document.getElementById('history').innerHTML += `<div>問題リスト1からゲームを開始します。</div>`;
+                document.getElementById('control-button').innerText = 'スキップ';
+                displayProblem();
+            } else if (gamePhase === 1) {
+                // 問題リスト2にスキップ
+                document.getElementById('history').innerHTML += `<div>問題リスト2にスキップします。</div>`;
+                gamePhase = 2;
+                currentProblemIndex = 0;
+                currentProblemSet = problemList2.sort(() => 0.5 - Math.random()).slice(0, problemsToPresentList2);
+                presentedProblemsList2 = currentProblemSet.length;
+                displayProblem();
+            } else if (gamePhase === 2) {
+                // ゲーム終了にスキップ
+                document.getElementById('history').innerHTML += `<div>ゲームを終了します。</div>`;
+                calculateFinalScore();
+            }
+        }
+
+        // 回答処理関数
+        function submitAnswer() {
+            let userInput = document.getElementById('answer-input').value;
+            if (userInput === '') return;
+
+            let historyDiv = document.getElementById('history');
+            let problem = currentProblemSet[currentProblemIndex];
+            let userNum = parseInt(userInput);
+
+            if (userNum === 0) {
+                historyDiv.innerHTML += `<div>問題${currentProblemIndex + 1}：誤答（0を入力）</div>`;
+                currentProblemIndex++;
+                displayProblem();
+                return;
+            }
+
+            let userCounts = getDigitCounts(userNum);
+            let userDigits = [];
+            for (let i = 1; i <= 9; i++) {
+                for (let c = 0; c < userCounts[i]; c++) {
+                    userDigits.push(i);
+                }
+            }
+            userDigits.sort((a, b) => a - b);
+
+            if (userDigits.toString() !== problem.digits.toString()) {
+                historyDiv.innerHTML += `<div>問題${currentProblemIndex + 1}：組み合わせが違います</div>`;
+                document.getElementById('answer-input').value = '';
+                return;
+            }
+
+            if (!isPrime(userNum)) {
+                historyDiv.innerHTML += `<div>問題${currentProblemIndex + 1}：誤答（${userNum}は素数ではありません）</div>`;
+            } else {
+                historyDiv.innerHTML += `<div>問題${currentProblemIndex + 1}：正解！（${userNum}）</div>`;
+                score++;
+                document.getElementById('score').innerText = `正解：${score}`;
+                if (gamePhase === 1) {
+                    correctAnswersList1++;
+                } else if (gamePhase === 2) {
+                    correctAnswersList2++;
+                }
+            }
+
+            currentProblemIndex++;
+            displayProblem();
+        }
+
+        // 最終スコアの計算と表示
+        function calculateFinalScore() {
+            document.getElementById('input-area').style.display = 'none';
+            document.getElementById('control-button').style.display = 'none';
+            document.getElementById('digit-combination').innerHTML = '';
+
+            let finalScore = 0;
+            let part1 = 0;
+            let part2 = 0;
+
+            if (presentedProblemsList1 > 0) {
+                part1 = totalProblemsList1 * (correctAnswersList1 / presentedProblemsList1);
+            }
+
+            if (presentedProblemsList2 > 0) {
+                part2 = totalProblemsList2 * (correctAnswersList2 / presentedProblemsList2);
+            }
+
+            finalScore = part1 + part2;
+
+            document.getElementById('question-area').innerHTML = `<div>ゲーム終了！お疲れ様でした！</div>
+            <div>最終スコア：${finalScore.toFixed(2)}</div>`;
+
+            document.getElementById('history').innerHTML += `<div>ゲームが終了しました。</div>`;
+
+            // ゲーム終了時にツイートボタンを表示
+            gameFinished(finalScore.toFixed(1));
+        }
+
+        // ゲーム終了時に呼び出される関数
+        function gameFinished(score) {
+            // スコアが全問正解かどうかを判定
+            let maxScore = totalProblemsList1 + totalProblemsList2;
+            let scoreText = score;
+
+            if (score == maxScore) {
+                scoreText = `${score}(全問正解)`;
+            }
+
+            const tweetText = `#素数力診断 v1.0 私の5枚5桁素数力は${scoreText}です！\nhttps://green-plus.github.io/sosushindan/`;
+
+            const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+
+            // 既存のボタンがあれば削除
+            const existingButton = document.querySelector('#tweetButtonContainer a');
+            if (existingButton) {
+                existingButton.parentNode.removeChild(existingButton);
+            }
+
+            // 新しいツイートボタンを作成
+            const tweetButton = document.createElement('a');
+            tweetButton.setAttribute('href', tweetUrl);
+            tweetButton.setAttribute('target', '_blank');
+            tweetButton.textContent = '結果をツイート';
+            tweetButton.style.display = 'inline-block';
+            tweetButton.style.padding = '10px 20px';
+            tweetButton.style.backgroundColor = '#1DA1F2';
+            tweetButton.style.color = '#fff';
+            tweetButton.style.textDecoration = 'none';
+            tweetButton.style.borderRadius = '5px';
+
+            // ボタンをページに追加
+            document.getElementById('tweetButtonContainer').appendChild(tweetButton);
+        }
+
+        // 初期化関数
+        function initializeGame() {
+            console.log('素数リストを生成しています...');
+
+            let uniqueCounts1 = new Set();
+            let uniqueCounts2 = new Set();
+
+            for (let num = 10000; num <= 99999; num++) {
+                if (containsZero(num)) continue;
+                if (isPrime(num)) {
+                    let counts = getDigitCounts(num);
+                    let digits = [];
+                    for (let i = 1; i <= 9; i++) {
+                        for (let c = 0; c < counts[i]; c++) {
+                            digits.push(i);
+                        }
+                    }
+                    digits.sort((a, b) => a - b);
+                    let digitsKey = digits.join('');
+
+                    if (allDigitsUnique(counts)) {
+                        if (!uniqueCounts1.has(digitsKey)) {
+                            uniqueCounts1.add(digitsKey);
+                            problemList1.push({ digits: digits });
+                        }
+                    } else {
+                        if (!uniqueCounts2.has(digitsKey)) {
+                            uniqueCounts2.add(digitsKey);
+                            problemList2.push({ digits: digits });
+                        }
+                    }
+                }
+            }
+
+            totalProblemsList1 = problemList1.length;
+            totalProblemsList2 = problemList2.length;
+
+            console.log(`問題リスト1の問題数：${totalProblemsList1}`);
+            console.log(`問題リスト2の問題数：${totalProblemsList2}`);
+        }
+
+        // イベントリスナーの設定
+        document.getElementById('control-button').addEventListener('click', startGame);
+        document.getElementById('submit-button').addEventListener('click', submitAnswer);
+
+        // Enterキーで回答を送信できるようにイベントリスナーを追加
+        document.getElementById('answer-input').addEventListener('keydown', function(event) {
+            if (event.key === "Enter") {
+                submitAnswer();
+            }
+        });
+
+        // ゲームの初期化
+        initializeGame();
+    </script>
+
+</body>
+</html>
